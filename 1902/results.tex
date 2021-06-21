@@ -1,0 +1,91 @@
+\begin{table}[t]
+\caption{Results on \textsc{WikiTableQuestions}.}
+\label{wtq_results_ablation}
+\begin{center}
+\begin{small}
+\begin{tabular}{@{\ww}l@{\www}c@{\www}c@{\www}c@{\www}c@{\ww}}
+\toprule
+& & & Improvement \\
+Method &  Dev & Test & on MAPO \\
+\midrule
+% IML & 36.9 \script{$\pm$ 0.5} & 38.5 \script{$\pm$ 0.7} & -4.4 \\
+MAPO & 42.2 \script{$\pm$ 0.6} & 42.9 \script{ $\pm$ 0.5} & --\\
+MAPOX & 42.6 \script{$\pm$ 0.5} & 43.3 \script{ $\pm$ 0.4} & +0.4\\
+BoRL & 42.9 \script{$\pm$ 0.6} & 43.8 \script{ $\pm$ 0.2} & +0.9\\
+MeRL & 43.2 \script{$\pm$ 0.5} & \textbf{44.1} \script{ $\pm$ 0.2} & \textbf{+1.2}\\
+\bottomrule
+\end{tabular}
+\end{small}
+\end{center}
+\vspace{-0.25in}
+\end{table}
+
+\begin{table}[t]
+\caption{Results on \textsc{WikiSQL} using only weak supervision.}
+\label{wikisql_results}
+\begin{center}
+\begin{small}
+\begin{tabular}{@{\ww}l@{}c@{\www}c@{\www}c@{\ww}}
+\toprule
+& & & Improvement \\
+Method &  Dev & Test & on MAPO \\
+\midrule
+% IML & 70.2 \script{$\pm$ 0.2} & 51.0 \script{$\pm$ 7.5} & -21.4 \\
+MAPO & 71.8 \script{$\pm$ 0.4} & 72.4  \script{ $\pm$ 0.3} & --\\
+MAPOX & 74.5 \script{$\pm$ 0.4} & 74.2 \script{ $\pm$ 0.4} & +1.8\\
+BoRL & 74.6 \script{$\pm$ 0.4} & 74.2 \script{ $\pm$ 0.2} & +1.8\\
+MeRL & 74.9 \script{$\pm$ 0.1} & \textbf{74.8} \script{$\pm$ 0.2} & \textbf{+2.4}\\
+\midrule
+MAPO (Ens. of 5)  & - & 74.2 & --\\
+% & & & \\
+MeRL (Ens. of 5) & - & \textbf{76.9}  & \textbf{+2.7}\\
+%(ensemble of 5) & & & \\
+\midrule
+\end{tabular}
+\end{small}
+\end{center}
+\vspace{-0.25in}
+\end{table}
+
+{\bf Results.}~We present the results on weakly-supervised semantic
+parsing in \tabref{wtq_results_ablation}
+and \tabref{wikisql_results}. We observe that MAPOX noticeably
+improves upon MAPO on both datasets by performing better exploration.
+In addition, MeRL and BoRL both improve upon MAPOX
+in \textsc{WikiTableQuestions} demonstrating that even when a diverse
+set of candidates from IML are available, one still benefits from our
+automatic reward learning framework. On \textsc{WikiSQL}, we do
+not see any gain from BoRL on top of MAPOX, however, MeRL improves
+upon MAPOX by 0.6\% accuracy. \tabref{wikisql_results} also shows
+that even with ensembling $5$ models, MeRL significantly outperforms
+MAPO.  Finally, \tabref{wikitable_results} compares our approach with
+previous works on \textsc{WikiTableQuestions}. Note that the learned 
+auxiliary reward function matches our intuition, e.g. it prefers 
+programs with more entity matches and shorter length.
+
+\begin{table}[t]
+\caption{Comparison to previous approaches for \textsc{WikiTableQuestions}}
+\label{wikitable_results}
+\begin{center}
+\begin{small}
+\begin{tabular}{lccr}
+\toprule
+Method & Ensemble Size & Test \\
+\midrule
+\citet{pasupat2015tables}  & - & 37.1 \\
+\citet{Neelakantan2016LearningAN} & 15 & 37.7 \\
+\citet{haug2018NeuralMR} & 15 & 38.7 \\
+\citet{zhang2017macro} & - & 43.7 \\
+MAPO~\cite{NIPS2018_8204} & 10 & 46.3 \\
+MeRL & 10  & \textbf{46.9} \\
+\bottomrule
+\end{tabular}
+\end{small}
+\end{center}
+\vspace*{-0.25in}
+\end{table}
+
+\subsubsection{Utility of meta-optimization}
+We compare MeRL's meta-optimization approach to post-hoc ``fixing" the policy obtained after training using underspecified rewards. Specifically, we learn a linear re-ranking function which is trained to maximize rewards on the validation set by rescoring the beam search samples on the set. The re-ranker is used to rescore sequences sampled from the learned policy at test time. We implemented two variants of this baseline: 1) Baseline 1 uses the same trajectory-level features as our auxiliary reward function, 2) Baseline 2 uses the policy's probability in addition to the auxiliary reward features in the ranking function. We use the policies learned using MAPOX for these baselines and evaluate them on \textsc{WikiTableQuestions}.
+
+{\bf Results.}~Baseline 1 and 2 resulted in -3.0\% drop and +0.2\% improvement in test accuracy respectively, as opposed to +0.8\% improvement by MeRL over MAPOX. MeRL's improvement is significant as the results are averaged across 5 trials. These results demonstrate the efficacy of the end-to-end approach of MeRL as compared to the two stage approach of learning a policy followed by reranking to fix it. Additionally, the learned auxiliary rewards for MeRL only have to distinguish between spurious and non-spurious programs while the post-hoc reranker has to differentiate between correct and incorrect programs too.

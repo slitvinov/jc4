@@ -1,0 +1,83 @@
+The problem we study in this work as well as the proposed approach intersect with
+many subfields of machine learning and natural language processing
+discussed separately below.
+
+{\bf Reward learning.}
+Reinforcement learning (RL) problems are specified in terms of a
+reward function over state-action pairs,
+or a trajectory return function for problems with sparse feedback.
+A key challenge in applying RL algorithms to real world problems
+is the limited availability of a rich and reliable reward function.
+Prior work has proposed to learn the reward function
+(1) from expert demonstrations using inverse reinforcement
+learning~\cite{abbeel2004apprenticeship,ziebart2008maximum} or
+adversarial imitation learning~\cite{ho2016generative} and (2) from
+human feedback~\cite{christiano2017deep,leike2018scalable,ibarz2018reward}.
+Recently, these ideas have been applied to the automatic discovery of goal
+specifications~\cite{xie2018few,bahdanau19}, text generation tasks~\cite{wang2018no,wu2017sequence,bosselut2018discourse} and the
+optimization of reward functions~(\eg~\citet{gleave2018multi,fu19, shi2018towards})
+via inverse RL.
+By contrast, we aim to learn a reward function through
+meta-learning to enhance underspecified rewards without using any form
+of trajectory or goal demonstrations.
+Another relevant work is LIRPG~\cite{zheng2018learning}, which
+learns a parametric intrinsic reward function that can be added to the
+extrinsic reward to improve the performance of policy gradient methods.
+While the intrinsic reward function in LIRPG is trained to optimize the extrinsic reward, our reward function is trained to optimize the validation set performance through meta-learning, because our main concern is generalization.
+
+{\bf Meta-learning.}
+Meta-learning aims to design learning algorithms that can quickly
+adapt to new tasks or acquire new skills,
+which has shown recent success in
+RL~\cite{finn2017model,duan2016rl,wang2016learning,nichol2018reptile}.
+There has been a recent surge of interest in the field of meta-reinforcement
+learning with previous work tackling problems such as automatically acquiring intrinsic
+motivation~\cite{zheng2018learning}, discovering exploration
+strategies~\cite{gupta2018meta, xu2018learning}, and adapting the nature of returns in
+RL~\cite{xu2018meta}. It has also been applied to few-shot inverse reinforcement learning~\cite{xu2018few},
+online learning for continual adaptation~\cite{nagabandi2018deep},
+and semantic parsing by treating each query as a separate task~\cite{huang2018NaturalLT}.
+Concurrent work~\cite{zou2019reward} also dealt with the problem of learning shaped
+rewards via meta-learning.
+Recent work has also applied meta-learning to reweight learning examples~\cite{ren2018learning}
+to enable robust supervised learning with noisy labels, learning dynamic loss functions~\cite{wu2018learning}
+and predicting auxiliary labels~\cite{liu2019self}
+for improving generalization performance in supervised learning.
+In a similar spirit, we use meta optimization to learn a reward function by maximizing the
+generalization accuracy of the agent's policy. Our hypothesis is that
+the learned reward function will weight correct trajectories more than
+the spurious ones leading to improved generalization.
+
+{\bf Semantic parsing.}  Semantic parsing has been a long-standing
+goal for language
+understanding~\cite{winograd1972understanding,zelle96geoquery,chen2011learning}.
+Recently, weakly supervised semantic
+parsing \cite{berant2013semantic,artzi2013weakly} has been proposed to
+alleviate the burden of providing gold programs or logical forms as
+annotations.  However, learning from weak supervision raises two main
+challenges~\cite{berant2013semantic,pasupat2016denotations,guu2017language}:
+(1) how to explore an exponentially large search space to find gold
+programs; (2) how to learn robustly given spurious programs that
+accidentally obtain the right answer for the wrong reason.  Previous
+work~\cite{pasupat2016inferring,mudrakarta2018training,krishnamurthy2017neural}
+has shown that efficient exploration of the search space and pruning
+the spurious programs by collecting more human annotations has a
+significant impact on final performance.  Some recent
+work~\cite{berant2019explaining,cho2018adversarial} augments weak
+supervision with other forms supervisions, such as user feedback or
+intermediate results.  Recent RL
+approaches~\cite{liang2017nsm,NIPS2018_8204} rely on maximizing
+expected reward with a memory buffer and performing systematic search
+space exploration to address the two challenges.  This paper takes
+such an approach a step further, by learning a reward function that
+can differentiate between spurious and correct programs, in addition
+to improving the exploration behavior.
+
+{\bf Language grounding.}
+Language grounding is another important testbed for language understanding.
+Recent efforts includes visual question answering~\cite{antol2015vqa} and
+instruction following in simulated environments~\cite{hermann17,babyai}.
+These tasks usually focus on the integration of visual and language components,
+but the language inputs are usually automatically generated or simplified.
+In our experiments, we go beyond simplified environments, and also demonstrate significant improvements
+in real world semantic parsing benchmarks that involve complex language inputs.

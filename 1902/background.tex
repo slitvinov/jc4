@@ -1,0 +1,111 @@
+\subsection{Problem statement}
+
+Let $\vx$ denote a complex input, such as a natural language question
+or instruction, which places an agent in some context.  Let $\va$
+denote a multivariate response, such as an action trajectory that the
+agent should produce. Let $R(\va \mid \vx, y) \in \{0, 1\}$ denote a
+contextual success-failure feedback that uses some side information
+$y$ to decide whether $\va$ is successful in the context of $\vx$ and
+$y$. For instance, $y$ may be some goal specification, \eg~the answer
+(denotation) in \figref{fig:fig1}, or the 2D coordinates of the goal in
+\figref{fig:fig2}. For simplicity of the exposition, we assume that
+$R(\va \mid \vx, y)$ is deterministic, even though our results are
+applicable to stochastic rewards as well.  To simplify the equations, we
+drop the conditioning of the return function on $\vx$ and $y$ and
+express the return function as $R(\va)$.
+
+Our aim is to optimize the parameters of a stochastic policy
+$\pi(\va\mid \vx)$ according to a training set in order to maximize the
+empirical success rate of a policy on novel test contexts. For
+evaluation, the agent is required to only provide a single action
+trajectory $\widehat{\va}$ for each context $\vx$, which is
+accomplished via greedy decoding for interactive environments, and
+beam search for non-interactive environments to perform approximate
+inference:
+\begin{equation}
+\widehat{\va} ~\approx~\argmax{\va \in \setA(\vx)}~{\pi(\va \mid \vx)}~.
+\end{equation}
+Let $\setA(\vx)$ denote the combinatorial set of all plausible action
+trajectories for a context $\vx$, and let $\setAp(\vx)$ denote a
+subset of $\setA(\vx)$ comprising successful trajectories,
+\ie~$\setAp(\vx) \equiv \{\va \in \setA(\vx) \mid R(\va\mid \vx, y)
+=1\}$.
+
+
+\subsection{Standard Objective Functions}
+To address the problem of policy learning from binary success-failure
+feedback, previous work has proposed the following objective functions:\\[.3cm]
+%\begin{itemize}
+\triangle\textbf{IML (Iterative Maximum Likelihood)} estimation
+\cite{liang2017nsm,pqt2018} is an iterative process for optimizing a
+policy based on 
+\begin{equation}
+\displaystyle O_{\mathrm{IML}} = \sum_{\vx \in \sD} \frac{1}{\lvert \setAp(\vx) \rvert}\sum_{\vyp \in \setAp(\vx)} \log \pi(\vyp\mid\vx)~.
+\label{eq:iml}
+\end{equation}
+The key idea is to replace $\setAp(\vx)$ in \eqref{eq:iml} with a
+buffer of successful trajectories collected so far, denoted
+$\setBp(\vx)$. While the policy is being optimized based on
+\eqref{eq:iml}, one can also perform exploration by drawing {\em i.i.d.}
+samples from $\pi(\cdot \mid \vx)$ and adding such samples to
+$\setBp(\vx)$ if their rewards are positive.
+
+The more general variant of this objective function for non-binary
+reward functions has been called Reward Augmented Maximum Likelihood
+(RAML)~\cite{norouzi2016reward}, and one can think of an iterative
+version of RAML as well,
+\begin{equation}
+\displaystyle O_{\mathrm{RAML}} = 
+\sum_{\vx \in \sD} \frac{1}{Z(\vx)}
+\!\! \sum_{\vy \in \setA(\vx)} \!\!\exp(R(\va)/\tau) \log \pi(\vy\mid\vx)~,
+\label{eq:raml}
+\end{equation}
+where $Z(\vx) \equiv \sum_{\va \in \setA} \exp(R(\va)/\tau)$.\\[.4cm]
+\triangle \textbf{MML (Maximum Marginal Likelihood)}
+\cite{guu2017language,berant2013semantic} is an alternative approach to parameter
+estimation related to the EM algorithm, which is only concerned with
+the {\em marginal} probability of successful trajectories and not with
+the way probability mass is distributed across $\setAp(\vx)$,
+\begin{equation}
+\displaystyle O_{\mathrm{MML}} = \sum_{\vx \in \sD} \log
+\!\! \sum_{\vyp \in \setAp(\vx)} \!\! \pi(\vyp \mid \vx)~.
+\label{eq:mml}
+\end{equation}
+Again, $\setAp(\vx)$ is approximated using $\setBp(\vx)$
+iteratively. \citet{dayan1997using} also used a variant of this
+objective function for Reinforcement Learning.\\[.4cm]
+\triangle \textbf{RER (Regularized Expected Return)} is the common objective
+function used in RL
+\begin{equation}
+\displaystyle O_{\mathrm{RER}} = \sum_{\vx \in \sD} \tau {\mathcal H}(\pi(\cdot \mid \vx)) +\!\! \sum_{\vy \in \setA(\vx)} R(\vy) \pi(\vy \mid \vx),
+\label{eq:rer}
+\end{equation}
+where $\tau \ge 0$ and $\mathcal H$ denotes Shannon Entropy.  Entropy
+regularization often helps with stability of policy optimization
+leading to better solutions~\cite{williams1991function}.
+
+\citet{NIPS2018_8204} make the important observation that the
+expected return objective can be expressed as a sum of two terms: a
+summation over the trajectories inside a context specific buffer
+$\setBp(\vx)$ and a separate expectation over the trajectories outside
+of the buffer:
+\begin{equation}
+\displaystyle O_{\mathrm{ER}} = \sum_{\vx \in \sD}
+\underbrace{\sum_{\vy \in \setBp(\vx)}\!\! R(\vy) \pi(\vy \mid \vx)}_{\text{enumeration inside buffer}} + 
+\underbrace{\sum_{\vy \not\in \setBp(\vx)}\!\! R(\vy) \pi(\vy \mid \vx)}_{\text{expectation outside buffer}}.
+\label{eq:mapo}
+\end{equation}
+Based on this observation, they propose to use enumeration to estimate
+the gradient of the first term on the RHS of \eqref{eq:mapo} and use
+Monte Carlo sampling followed by rejection sampling to estimate the gradient of
+the second term on the RHS of \eqref{eq:mapo} using the
+REINFORCE~\cite{Williams92simplestatistical} estimator. This procedure
+is called Memory Augmented Policy Optimization (MAPO) and in its ideal
+form provides a low variance unbiased estimate of the gradient of
+\eqref{eq:mapo} for deterministic $R(\cdot)$. Note that one can also
+incorporate entropy into MAPO~\cite{NIPS2018_8204} as the
+contribution of entropy can be absorbed into the reward function as
+$R'(\va) = R(\va) - \tau\log\pi(\va\mid\vx)$. We make heavy use of the
+MAPO estimator and build our code\footnote{Our open-source implementation can be found at
+\url{https://github.com/google-research/google-research/tree/master/meta_reward_learning}.} on top of the open source code of
+MAPO generously provided by the authors.

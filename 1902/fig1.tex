@@ -1,0 +1,28 @@
+\small
+\begin{tabular}{@{}l@{\hspace*{.3cm}}l@{}}
+\begin{tabular}{@{}|@{\ww}l@{\ww}l@{\ww}l@{\ww}l@{\ww}|@{}}
+\hline
+Rank & Nation & Gold & Silver \\%& Bronze & Total\\
+\hline
+1 & USA	&	10 &	12 \\%&	9 \\%&	35 \\
+2 & GBR	&	9 &	4 \\%&	4 \\%&	17 \\
+3 & CHN	&	8 &	11 \\%&	4 \\%&	23 \\
+4 & RUS &	2 &	4 \\%&	7 \\%&	13 \\
+5 & GER &	2 &	2 \\%&	2 \\%&	6 \\
+6 & JPN & 	2 &	1 \\%&	3 \\%&	6 \\
+7 & FRA &	2 &	1 \\%&	0 \\%&	3 \\
+\hline
+%\bottomrule
+\end{tabular}%
+&
+\raisebox{1.2cm}{\begin{minipage}[t]{4.65cm}
+$\vx$ = ``Which nation won the most\\silver medal?''\\
+$R(\va) = \one{\texttt{Execute}(\va) = \text{``USA''}}$\\[.3cm]
+$\va_1$ = \texttt{argmax\_row(}Silver\texttt{)}.Nation\\
+$\va_2$ = \texttt{argmax\_row(}Gold\texttt{)}.Nation\\
+$\va_3$ = \texttt{argmin\_row(}Rank\texttt{)}.Nation\\
+$R(\va_1) = R(\va_2) = R(\va_3) = 1$
+\vfill
+\end{minipage}}
+\\
+\end{tabular}

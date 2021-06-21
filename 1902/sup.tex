@@ -1,0 +1,274 @@
+\section{Semantic Parsing}
+\label{sup:semantic}
+
+Our implementation is based on the open source implementation of MAPO~\cite{NIPS2018_8204} in
+Tensorflow~\cite{abadi2016tensorflow}. We use the same model
+architecture as MAPO which combines a seq2seq model augmented by a
+key-variable memory~\cite{liang2017nsm} with a domain specific
+language interpreter. We utilized the hyperparameter tuning
+service~\cite{golovin2017google} provided by Google Cloud for BoRL.
+
+\subsection{Datasets}
+
+{\bf \textsc{WikiTableQuestions}}~\cite{pasupat2015tables} contains tables extracted from Wikipedia and question-answer pairs about the tables. There are 2,108 tables and 18,496 question-answer pairs splitted into train/dev/test set. We follow the construction in~\cite{pasupat2015tables} for converting a table into a directed graph that can be queried, where rows and cells are converted to graph nodes while column names become labeled directed edges. For the questions, we use string match to identify phrases that appear in the table. We also identify numbers and dates using the CoreNLP annotation released with the dataset.
+
+The task is challenging in several aspects.
+First, the tables are taken from Wikipedia and cover a wide range of topics.
+Second, at test time, new tables that contain  unseen column names appear.
+Third, the table contents are not normalized as in knowledge-bases like Freebase, so there are noises and ambiguities in the table annotation.
+Last, the semantics are more complex comparing to previous datasets like \textsc{WebQuestionsSP} \cite{yih2016webquestionssp}.
+It requires multiple-step reasoning using a large set of functions, including comparisons, superlatives, aggregations, and arithmetic operations~\cite{pasupat2015tables}.
+
+{\bf \textsc{WikiSQL}}~\cite{zhong2017seq2sql} is a recent large scale dataset on learning natural language interfaces for databases. It also uses tables extracted from Wikipedia, but is much larger and is annotated with programs (SQL). There are 24,241 tables and 80,654 question-program pairs splitted into train/dev/test set. Comparing to \textsc{WikiTableQuestions}, the semantics are simpler because SQL use fewer operators (column selection, aggregation, and conditions). We perform similar preprocessing as for \textsc{WikiTableQuestions}. We don't use the annotated programs in our experiments.
+
+\begin{figure*}[t]
+  \vspace{0.1in}
+  \footnotesize
+  \begin{center}
+    \begin{tabular}{@{}lm{\columnwidth}@{}}
+    \toprule
+     Example & Comment\\
+    \midrule
+      \begin{tabular}{@{}m{\columnwidth}@{}}
+    	Query nu-1167: \textbf{Who was the first oldest living president?} \\
+    	MAPO: $v_0$ = (first all\_rows); $v_{\mathrm{ans}}$ = (hop $v_0$ r.president)\\
+    	MeRL: $v_0$ = (argmin all\_rows r.became\_oldest\_living\_president-date); $v_{\mathrm{ans}}$ = (hop $v_0$ r.president)\\
+      \end{tabular} & Both programs generate the correct answer despite MAPO's program being spurious since it assumes the database table to be sorted based on the \textit{became\_oldest\_living\_president-date} column.\\
+    \midrule
+      \begin{tabular}{@{}m{\columnwidth}@{}}
+    	Query nu-346: \textbf{What tree is the most dense in India?} \\
+    	MAPO: $v_0$ = (argmax all\_rows r.density); $v_{\mathrm{ans}}$ = (hop $v_0$ r.common\_name)\\
+    	MeRL: $v_0$ = (filter\_str\_contain\_any all\_rows [u`india'] r.location); $v_1$ = (argmax $v_0$ r.density); $v_{\mathrm{ans}}$ = (hop $v_1$ r.common\_name)\\
+      \end{tabular} & MAPO's program generates the correct answer by chance since it finds the tree with most density which also happens to be in India in this specific example.\\
+	\midrule
+	  \begin{tabular}{@{}m{\columnwidth}@{}}
+		Query nu-2113: \textbf{How many languages has at least 20,000 speakers as of the year 2001?}\\
+		MeRL: $v_0$ = (filter\_ge all\_rows [20000] r.2001\_\dots-number); $v_{\mathrm{ans}}$ = (count $v_0$)\\
+		MAPO: $v_0$ = (filter\_greater all\_rows [20000] r.2001\_\dots-number); $v_{\mathrm{ans}}$ = (count $v_0$)\\
+	  \end{tabular} & Since the query uses ``at least", MeRL uses the correct function token \textit{filter\_ge} (i.e $\ge$ operator) while MAPO uses \textit{filter\_greater} (i.e. $>$ operator) which accidentally gives the right answer in this case. For brevity, \textit{r.2001\_{\dots}-number} refers to
+	  \textit{r.2001\_census\_1\_total\_population\_1\_004\_59\_million-number}.\\
+	\bottomrule
+    \end{tabular}
+    \caption{Example of generated programs from models trained using MAPO and MeRL on \textsc{WikiTableQuestions}. Here, $v_{i}$ correponds to the intermediate variables computed
+    by the generated program while $v_{\mathrm{ans}}$ corresponds to the variable containing the executed result of the generated program.} \label{fig:spurious_examples}
+  \end{center}
+\vspace{-0.2in}
+\end{figure*}
+
+\subsection{Auxiliary Reward Features}
+In our semantic parsing experiments, we used the same preprocessing as implemented in MAPO.
+The natural language queries are preprocessed to identify numbers and date-time entities. In addition,
+phrases in the query that appear in the table entries are converted to string entities and the columns
+in the table that have a phrase match are assigned a column feature weight based on the match.
+
+We used the following features for our auxiliary reward for both \textsc{WikiTableQuestions} and \textsc{WikiSQL}:
+\begin{itemize}
+	\itemsep -0.05em
+	\item $\vf_1$: Fraction of total entities in the program weighted by the entity length
+	\item $\vf_2$, $\vf_3$, $\vf_4$: Fraction of date-time, string and number entities in the program weighted by the entity length respectively
+	\item $\vf_5$: Fraction of total entities in the program
+	\item $\vf_6$: Fraction of longest entities in the program
+	\item $\vf_7$: Fraction of columns in the program weighted by the column weight
+	\item $\vf_8$: Fraction of total columns in the program with non-zero column weight
+	\item $\vf_9$: Fraction of columns used in the program with the highest column column weight
+	\item $\vf_{10}$: Fractional number of expressions in the program
+	\item $\vf_{11}$: Sum of entities and columns weighted by their length and column weight respectively divided by the number of expressions in the program
+\end{itemize}
+
+\subsection{Example Programs}
+\figref{fig:spurious_examples} shows some natural language queries in \textsc{WikiTableQuestions} for which both the models trained using MAPO and MeRL
+generated the correct answers despite generating different programs.
+
+\subsection{Training Details}
+
+\begin{table}[tb]
+	\footnotesize
+	\caption{MAPOX hyperparameters used for experiments in Table 2.}
+	\label{wtq_hparam:1}
+	\begin{center}
+	\begin{tabular}{@{\ww}lccr@{\ww}}
+	\toprule
+	Hyperparameter & Value \\
+	\midrule
+	Entropy Regularization & 9.86 x $10^{-2}$ \\
+	Learning Rate & 4 x $10^{-4}$ \\
+	Dropout & 2.5 x $10^{-1}$ \\
+	\bottomrule
+	\end{tabular}
+	\end{center}
+
+	\caption{BoRL hyperparameters used in experiments in Table 2.}
+	\label{wtq_hparam:2}
+	\begin{center}
+	\begin{tabular}{@{\ww}lccr@{\ww}}
+	\toprule
+	Hyperparameter & Value \\
+	\midrule
+	Entropy Regularization & 5 x $10^{-2}$ \\
+	Learning Rate & 5 x $10^{-3}$ \\
+	Dropout & 3 x $10^{-1}$ \\
+	\bottomrule
+	\end{tabular}
+	\end{center}
+
+	\caption{MeRL hyperparameters used in experiments in Table 2.}
+	\label{wtq_hparam:3}
+	\begin{center}
+	\begin{tabular}{@{\ww}lccr@{\ww}}
+	\toprule
+	Hyperparameter & Value \\
+	\midrule
+	Entropy Regularization & 4.63 x $10^{-2}$ \\
+	Learning Rate & 2.58 x $10^{-2}$ \\
+	Dropout & 2.5 x $10^{-1}$ \\
+	Meta-Learning Rate & 2.5 x $10^{-3}$ \\
+	\bottomrule
+	\end{tabular}
+	\end{center}
+\end{table}
+
+\begin{table}[tb]
+	\footnotesize
+	\caption{MAPOX hyperparameters used for experiments in Table 3.}
+	\label{wikisql_hparam:1}
+	\begin{center}
+	\begin{tabular}{@{\ww}lccr@{\ww}}
+	\toprule
+	Hyperparameter & Value \\
+	\midrule
+	Entropy Regularization & 5.1 x $10^{-3}$ \\
+	Learning Rate & 1.1 x $10^{-3}$ \\
+	\bottomrule
+	\end{tabular}
+	\end{center}
+
+	\caption{BoRL hyperparameters used in experiments in Table 3.}
+	\label{wikisql_hparam:2}
+	\begin{center}
+	\begin{tabular}{@{\ww}lccr@{\ww}}
+	\toprule
+	Hyperparameter & Value \\
+	\midrule
+	Entropy Regularization & 2 x $10^{-3}$ \\
+	Learning Rate & 1 x $10^{-3}$ \\
+	\bottomrule
+	\end{tabular}
+	\end{center}
+
+	\caption{MeRL hyperparameters used in experiments in Table 3.}
+	\label{wikisql_hparam:3}
+	\begin{center}
+	\begin{tabular}{@{\ww}lccr@{\ww}}
+	\toprule
+	Hyperparameter & Value \\
+	\midrule
+	Entropy Regularization & 6.9 x $10^{-3}$ \\
+	Learning Rate & 1.5 x $10^{-3}$ \\
+	Meta-Learning Rate & 6.4 x $10^{-4}$ \\
+	\bottomrule
+	\end{tabular}
+	\end{center}
+\end{table}
+
+We used the optimal hyperparameter settings for training the vanilla IML and MAPO
+provided in the open source implementation of MAPO.  One
+major difference was that we used a single actor for our policy gradient implementation
+as opposed to the distributed sampling implemented in Memory Augmented Program Synthesis.
+
+For our \textsc{WikiTableQuestions} experiments reported in Table 2,
+we initialized our policy from a pretrained MAPO
+checkpoint (except for vanilla IML and MAPO) while for all
+our \textsc{WikiSQL} experiments, we trained the agent's policy
+starting from random initialization.
+
+For the methods which optimize the validation accuracy using the
+auxiliary reward, we trained the auxiliary reward parameters for a
+fixed policy initialization and then evaluated the top $K$ hyperparameter settings 5
+times (starting from random initialization for \textsc{WikiSQL} or on 5 different pretrained MAPO
+checkpoints for \textsc{WikiTableQuestions}) and picked the hyperparameter setting with the best
+average validation accuracy on the 5 runs to avoid the danger of
+overfitting on the validation set.
+
+We only used a single run of IML for both \textsc{WikiSQL}
+and \textsc{WikiTableQuestions} for collecting the exploration
+trajectories. For WikiSQL, we used greedy exploration with one
+exploration sample per context during training. We run the best
+hyperparameter setting for 10k epochs for both \textsc{WikiSQL}
+and \textsc{WikiTableQuestions}. Similar to MAPO, the ensembling results reported in Table 4,
+used 10 different training/validation splits of the \textsc{WikiTableQuestions} dataset.
+This required training  different IML models on each split to collect the exploration
+trajectories.
+
+We ran BoRL for 384 trials for \textsc{WikiSQL} and 512 trials for \textsc{WikiTableQuestions} respectively.
+We used random search with 30 different settings to obtain the optimal hyperparameter values
+for all our experiments. The detailed hyperparameter settings for \textsc{WikiTableQuestions}
+and \textsc{WikiSQL} experiments are listed in \tabref{wtq_hparam:1} to \tabref{wtq_hparam:3} and \tabref{wikisql_hparam:1} to \tabref{wikisql_hparam:3} respectively.
+Note that we used a dropout value of 0.1 for all our experiments on \textsc{WikiSQL} except
+MAPO which used the optimal hyperparameters reported by \citet{NIPS2018_8204}.
+
+\section{Instruction Following Task}
+\label{sup:ift}
+
+\subsection{Auxiliary Reward Features}
+In the instruction following task, the auxiliary reward function was computed using the single and pairwise comparison of
+counts of symbols and actions in the language command $\displaystyle \vx$ and agent's trajectory $\displaystyle \vy$ respectively. Specifically, we created a
+feature vector $\displaystyle \vf$of size 272 containing binary features of the form $\displaystyle f(a, c) = \#_{a}(\vx) == \#_{c}(\vy)$
+and $\displaystyle \vf(ab, cd) = \#_{ab}(\vx) == \#_{cd}(\vy)$ where $ a, b \in$  \{Left, Right, Up, Down\} and $c, d \in$ \{0, 1, 2, 3\} and $\displaystyle \#_i(\vj)$ represents
+the count of element $i$ in the vector $\displaystyle \vj$. We learn one weight parameter for each single count comparison feature. The weights for the pairwise features are
+represented using the weights for single comparison features $\vw_{(ab,cd)} = \alpha * \vw_{ac} * \vw_{bd} +  \beta * \vw_{ad} * \vw_{bc}$ using the additional weights $\alpha$
+and $\beta$.
+
+The auxiliary reward is a linear function of the weight parameters~(see equation 7). However, in case of MeRL, we also used a softmax transformation of the linear auxiliary reward computed over all the possible trajectories (at most 10) for a given language instruction.
+
+\subsection{Training Details}
+We used the Adam Optimizer~\cite{kingma2014adam} for all the setups with a replay buffer memory weight clipping of 0.1 and full-batch training.
+We performed hyperparameter sweeps via random search over the interval ($10^{-4}$, $10^{-2}$) for learning rate and meta-learning rate
+and the interval ($10^{-4}$, $10^{-1}$) for entropy regularization. For our MeRL setup with auxiliary + underspecified rewards,
+we initialize the policy network using the MAPO baseline trained with the underspecified rewards. The hyperparameter
+settings are listed in \tabref{ift:5} to \tabref{ift:7}. MeRL was trained for 5000 epochs while other setups were trained
+for 8000 epochs. We used 2064 trials for our BoRL setup which was approximately 20x the number of trials we used to tune hyperparameters
+for other setups.
+
+\begin{table}[tb]
+\footnotesize
+\caption{MAPO hyperparameters used for the setup with Oracle rewards in Table 1.}
+\label{ift:5}
+\begin{center}
+\begin{tabular}{@{\ww}lcccr@{\ww}}
+\toprule
+Hyperparameter & Value \\
+\midrule
+Entropy Regularization & 3.39 x $10^{-2}$ \\
+Learning Rate & 5.4 x $10^{-3}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\caption{MAPO hyperparameters used for the setup with underspecified rewards in Table 1.}
+\label{ift:6}
+\begin{center}
+\begin{tabular}{@{\ww}lcccr@{\ww}}
+\toprule
+Hyperparameter & Value \\
+\midrule
+Entropy Regularization & 1.32 x $10^{-2}$ \\
+Learning Rate & 9.3 x $10^{-3}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\caption{MeRL hyperparameters used for the setup with underspecified + auxiliary rewards in Table 1.}
+\label{ift:7}
+\begin{center}
+\begin{tabular}{@{\ww}lcccr@{\ww}}
+\toprule
+Hyperparameter & Value \\
+\midrule
+Entropy Regularization & 2 x $10^{-4}$ \\
+Learning Rate & 4.2 x $10^{-2}$ \\
+Meta-Learning Rate & 1.5 x $10^{-4}$ \\
+Gradient Clipping & 1 x $10^{-2}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}

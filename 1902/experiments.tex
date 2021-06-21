@@ -1,0 +1,89 @@
+We evaluate our approach on two weakly-supervised semantic parsing
+benchmarks, \textsc{WikiTableQuestions}~\cite{pasupat2015tables}
+and \textsc{WikiSQL}~\cite{zhong2017seq2sql}. Note that we only
+make use of weak-supervision in \textsc{WikiSQL} and therefore, our methods
+are not directly comparable to methods trained using strong supervision in the form
+of (question, program) pairs on \textsc{WikiSQL}. Additionally, we demonstrate
+the negative effect of under-specified rewards on the generalization ability
+of an agent in the instruction following task (refer to section \ref{instruction_follow}). For all our experiments, we report
+the mean accuracy and standard deviation based on $5$ runs with identical hyperparameters.
+
+\subsection{Instruction Following Task}
+\label{instruction_follow}
+
+We experiment with a simple instruction following environment in the
+form of a simple maze of size $N \!\times\! N$ with $K$ deadly traps
+distributed randomly over the maze. A goal located in one of the four
+corners of the maze~(see Figure \ref{fig:fig2}). An agent is provided
+with a language instruction, which outlines an optimal path that
+the agent can take to reach the goal without being trapped. The agent
+receives a reward of $1$ if it succeeds in reaching the goal within a
+certain number of steps, otherwise $0$. To increase the difficulty of this task, 
+we reverse the instruction sequence that the agent receives, 
+\ie~the command ``Left Up Right" corresponds to the optimal trajectory of actions
+$(\rightarrow, \uparrow, \leftarrow)$. 
+
+We use a set of $300$ randomly generated environments with $(N, K) = (7, 14)$ 
+with training and validation splits of $80\%$ and $20\%$ respectively. 
+The agent is evaluated on $300$ unseen test environments from the same distribution. 
+To mitigate the issues due to exploration, we train the agent using a fixed replay
+buffer containing the gold trajectory for each environment.
+For more details, refer to the supplementary material. We compare
+the following setups for a MAPO agent trained with the same neural
+architecture in \tabref{textworld_results}:\\[.25cm]
+\triangle \textbf{Oracle Reward}: This agent is trained using the replay buffer containing only the gold trajectories.\\[.25cm]
+\triangle \textbf{Underspecified Reward}: For each environment, we added a fixed number of additional spurious
+trajectories~(trajectories which reach the goal without following the language instruction) to the oracle memory buffer.\\[.25cm]
+\triangle \textbf{Underspecified + Auxiliary Reward}: In this case, we use the memory buffer with spurious trajectories similar
+to the underspecified reward setup, however, we additionally learn an auxiliary reward function using
+MeRL and BoRL~(see Algorithm \ref{alg:meta_lur} and \ref{alg:bayes_opt_lur} respectively).
+
+\begin{table}[t]
+\vspace*{-0.08in}
+\caption{Performance of the trained MAPO agent with access to different type of rewards in the instruction following task.}
+\label{textworld_results}
+\vspace*{-0.1in}
+\begin{center}
+\begin{small}
+\begin{tabular}{@{\ww}lcc@{\ww}}
+\toprule
+Reward structure & Dev & Test \\
+\midrule
+Underspecified & 73.0 \script{$\pm$ 3.4} & 69.8 \script{$\pm$ 2.5} \\
+Underspecified + Auxiliary~(BoRL) & 75.3 \script{$\pm$ 1.6} & 72.3 \script{$\pm$ 2.2} \\
+Underspecified + Auxiliary~(MeRL) & 83.0 \script{$\pm$ 3.6} & 74.5 \script{$\pm$ 2.5} \\
+Oracle Reward & 95.7 \script{$\pm$ 1.3} & 92.6 \script{$\pm$ 1.0}\\
+\bottomrule
+\end{tabular}
+\end{small}
+\end{center}
+\vspace*{-0.2in}
+\end{table}
+
+All the agents trained with different types of reward signal achieve
+an accuracy of approximately $100\%$ on the training set. However, the
+generalization performance of Oracle rewards $>$ Underspecified +
+Auxiliary rewards $>$ Underspecified rewards. Using our
+Meta Reward-Learning (MeRL) approach, we are able to bridge
+the gap between Underspecified and Oracle rewards, which confirms our
+hypothesis that the generalization performance of an agent can serve
+as a reasonable proxy to reward learning.
+
+\subsection{Weakly-Supervised Semantic Parsing}
+\label{programsythesis}
+On \textsc{WikiSQL} and \textsc{WikiTableQuestions} benchmarks, the
+task is to generate an SQL-like program given a natural language
+question such that when the program is executed on a relevant data
+table, it produces the correct answer. We only have access to weak
+supervision in the form of question-answer pairs~(see
+Figure \ref{fig:fig1}). The performance of an agent trained to solve
+this task is measured by the number of correctly answered questions on
+a held-out test set.
+
+\subsubsection{Comparison to state-of-the-art results} 
+We compare the following variants of our technique with the current
+state-of-the-art in weakly supervised semantic parsing, Memory
+Augmented Policy Optimization~(\textbf{MAPO})~\cite{NIPS2018_8204}:\\[.25cm]
+\triangle \textbf{MAPOX}: Combining the exploration ability of IML with generalization ability of MAPO, MAPOX runs MAPO starting from a memory buffer $\setBpT$ containing all the high reward trajectories generated during the training of IML and MAPO using underspecified rewards only.\\[.25cm]
+\triangle \textbf{BoRL} (MAPOX + Bayesian Optimization Reward-Learning): As opposed to MAPOX, BoRL optimizes the MAPO objective only on the highest ranking	trajectories present in the memory buffer $\setBpT$ based on a parametric reward function learned using BayesOpt~(see Algorithm \ref{alg:bayes_opt_lur}).\\[.25cm]
+\triangle \textbf{MeRL} (MAPOX + Meta Reward-Learning): Similar to BoRL, MeRL optimizes the MAPO objective with an auxiliary reward function simultaneously learned with the agent's policy using meta-learning~(see Algorithm \ref{alg:meta_lur}).

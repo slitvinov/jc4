@@ -1,0 +1,148 @@
+Designing a reward function that distinguishes between optimal and
+suboptimal behavior is critical for the use of RL in
+real-world applications. This problem is particularly challenging when
+expert demonstrations are not available. When learning from
+underspecified success-failure rewards, one expects a considerable
+benefit from a refined reward function that differentiates
+different successful trajectories. While a policy $\pi(\va\mid\vx)$
+optimized using a robust objective function such as RER and MML learns
+its own internal preference between different successful trajectories,
+such a preference may be overly complex. This complexity arises particularly
+because the typical policies are autoregressive and only have limited
+access to trajectory level features. Learning an auxiliary reward
+function presents an opportunity for using trajectory level features
+designed by experts to influence a preference among successful
+trajectories.
+
+For instance, consider the problem of weakly-supervised semantic
+parsing, \ie~learning a mapping from natural language questions to
+logical programs only based on the success-failure feedback for each
+question-program pair. In this problem, distinguishing between
+purposeful and accidental success without human supervision remains an
+open problem. We expect that one should be able to discount a fraction
+of the spurious programs by paying attention to trajectory-level
+features such as the length of the program and the relationships
+between the entities in the program and the question. The key
+technical question is how to combine different trajectory level
+features to build a useful auxiliary reward function.
+
+For the general category of problems involving learning with underspecified
+rewards, our intuition is that fitting a policy on spurious
+trajectories is disadvantageous for the policy's generalization to
+unseen contexts. Accordingly, we put forward the following hypothesis:
+One should be able to learn an auxiliary reward function based on the
+performance of the policy trained with that reward function on a
+held-out validation set. In other words, we would like to learn reward
+functions that help policies generalize better.  We propose two
+specific approaches to implement this high level idea: (1) based on
+gradient based Meta-Learning (MAML)~\cite{finn2017model}
+(\algref{alg:meta_lur}) (2) using BayesOpt~\cite{snoek2012practical}
+as a gradient-free black box optimizer
+(\algref{alg:bayes_opt_lur}). Each one of these approaches has its own
+advantages discussed below, and it was not clear to us before running
+the experiments whether either of the techniques would work, and if so
+which would work better.
+
+{\bf Notation.} $\setDT$ and $\setDV$ denote the training and validation datasets
+respectively. $\setBpT$ represents the training memory buffer containing successful trajectories (based on underspecified rewards)
+for contexts in $\setDT$.
+
+In this work, we employ a feature-based terminal reward function $R_{\vphi}$
+parameterized by the weight vector $\vphi$. For a given context $\vx$,
+the auxiliary reward is only non-zero for successful trajectories.
+Specifically, for a feature vector $\vf(\va, \vx)$ for the context $\vx$ and trajectory
+$\va$ and the underspecified rewards $R(\va \mid \vx, y)$:
+\begin{equation}
+R_{\vphi}(\va \mid \vx, y) = \vphi^{T} \vf(\va, \vx) R(\va \mid \vx, y)
+.
+\label{eqn:auxiliary_reward}
+\end{equation}
+Learning the auxiliary reward parameters determines the relative importance of 
+features, which is hard to tune manually. Refer to the supplementary material for 
+more details about the auxiliary reward features used in this work. 
+
+\subsection{Meta Reward-Learning (MeRL)}
+\begin{algorithm}[t]
+   \caption{Meta Reward-Learning (MeRL)}
+   \label{alg:meta_lur}
+\begin{algorithmic}
+  \STATE {\bfseries Input:} $\setDT$, $ \setDV$, $\setBpT$, $\setBpV$
+  \FOR{step $t = 1, \dots, \mathrm{T}$}
+   \STATE Sample a mini-batch of contexts $\setX_{\mathrm{train}}$ from $\setDT$ and $\setX_{\mathrm{val}}$ from $\setDV$
+   \STATE Generate $n_{\mathrm{explore}}$ trajectories using $\pi_{\vtheta}$ for each context in $ \setX_{\mathrm{train}}$, $ \setX_{\mathrm{val}}$ and save successful trajectories to $\setBpT$, $\setBpV$ respectively
+   \STATE Compute $ \vtheta^{\prime} = \vtheta \ -\ \alpha \nabla_{\vtheta} O_{\mathrm{train}}(\pi_{\vtheta}, R_{\vphi})$ using samples from ($\setBpT$, $\setX_{\mathrm{train}}$)
+   \STATE Compute $ \vphi^{\prime} =  \vphi\ -\ \beta \nabla_{\vphi} O_{\mathrm{val}}(\pi_{\vtheta^{\prime}})$ using samples from ($\setBpV$, $\setX_{\mathrm{val}}$)
+   \STATE Update $\vphi \leftarrow \vphi^{\prime}$, $\vtheta \leftarrow \vtheta^{\prime}$
+  \ENDFOR
+\end{algorithmic}
+\end{algorithm}
+An overview of MeRL is presented in Algorithm \ref{alg:meta_lur}. At each iteration of MeRL,
+we simultaneously update the policy parameters $\vtheta$ and the auxiliary reward parameters $\vphi$.
+The policy $\pi_\vtheta$ is trained to maximize the training objective $O_{\mathrm{train}}$~\eqref{eqn:merl1} computed using the training dataset
+and the auxiliary rewards $R_{\vphi}$ while the auxiliary rewards are optimized to maximize the meta-training objective $O_{\mathrm{val}}$~\eqref{eqn:merl2}
+on the validation dataset:
+% https://tex.stackexchange.com/questions/44450/how-to-align-a-set-of-multiline-equations
+\begin{align}
+  \begin{split}
+  O_{\mathrm{train}}(\pi_{\vtheta}, R_{\vphi}) ={}& \sum_{\vx \in \setDT}\sum_{\vy \in \setBpT(\vx)}\!\! R_{\vphi}(\vy) \pi_{\vtheta}(\vy \mid \vx)\\
+                                                  & + \sum_{\vx \in \setDT} \tau {\mathcal H}(\pi_{\vtheta}(\cdot \mid \vx))\label{eqn:merl1}
+,
+  \end{split}
+  \raisetag{3\normalbaselineskip}\\
+  O_{\mathrm{val}}(\pi) ={}& \sum_{\vx \in \setDV}\sum_{\vy \in \setBpV(\vx)}\!\! R(\vy) \pi(\vy \mid \vx)\label{eqn:merl2}
+.
+\end{align}
+
+The auxiliary rewards $R_{\vphi}$ are not optimized directly to maximize the rewards on the validation set but optimized such that a policy learned by maximizing $R_\phi$ on the training set attains high underspecified rewards $R(\va \mid \vx, y)$ on the validation set. This indirect optimization is robust and less susceptible to spurious sequences on the validation set.
+
+MeRL requires $O_{\mathrm{val}}$ to be a differentiable function of $\vphi$. To tackle this issue, we compute $O_{\mathrm{val}}$ using only samples from the buffer $\setBp_{\mathrm{val}}$ containing successful trajectories for contexts in $\sD_{\mathrm{val}}$. Since we don't have access to ground-truth programs, we use beam search in non-interactive environments and greedy decoding in interactive environments to generate successful trajectories using policies trained with the underspecified rewards. Note that $\setBp_{\mathrm{val}}$ is also updated during training by collecting new successful samples from the current policy at each step.
+
+The validation objective is computed using the policy obtained after one gradient step update on the training objective and therefore, the auxiliary rewards affect the validation objective via the updated policy parameters $\vtheta^{\prime}$ as shown in equations \eqref{eqn:merl3} and \eqref{eqn:merl4}:
+\begin{align}
+  \vtheta^{\prime}(\vphi) ={}& \vtheta \ -\ \alpha \nabla_{\vtheta} O_{\mathrm{train}}(\pi_{\vtheta}, R_{\vphi})\label{eqn:merl3},\\
+  \nabla_{\vphi} O_{\mathrm{val}}(\pi_{\vthetaP}) ={}& \nabla_{\vthetaP} O_{\mathrm{val}}(\pi_{\vthetaP}) \nabla_{\vphi} \vtheta^{\prime}(\vphi)\label{eqn:merl4}
+.
+\end{align}
+
+\subsection{Bayesian Optimization Reward-Learning (BoRL)}
+\begin{algorithm}[t]
+   \caption{Bayesian Optimization Reward-Learning (BoRL)}
+   \label{alg:bayes_opt_lur}
+\begin{algorithmic}
+  \STATE {\bfseries Input:} $\setDT$, $\setDV$, $\setBpT$
+  \FOR{trial $k = 1, \dots, \mathrm{K}$}
+    \STATE Sample a parameter vector $\vphi_{k}$ for $R_{\vphi_{k}}$ by optimizing the acquisition function $a_{\mathrm{M}}$ over Bayesian model M i.e. $\vphi_{k} \leftarrow \argmax{\vphi}\ a_{M}(\vphi \ |\ \setV_{1:k-1} )$
+    \STATE Create a memory buffer $\setBp_{k}$ containing only the highest ranked trajectories in $\setBpT$ based on $R_{\vphi_{k}}$
+    \FOR{step $t = 1, \dots, \mathrm{T}$}
+      \STATE Sample batch of contexts $\setX_{\mathrm{train}}$ from $\setDT$
+      \FOR{context $\vc$ in $\setX_{\mathrm{train}}$}
+        \STATE Generate $n_{\mathrm{explore}}$ trajectories $\setS_{\vc}$ using $\pi_{\vtheta}$
+        \STATE Save successful trajectories in $\setS_{\vc}$ ranked higher than any trajectory in $\setBp_{k}(\vc)$ based on $R_{\vphi_{k}}$
+      \ENDFOR
+      \STATE Update $\vtheta \leftarrow \vtheta - \alpha \nabla_{\vtheta} O_{\mathrm{train}}(\pi_{\vtheta})$ using samples from ($\setBp_{k}$, $\setX_{\mathrm{train}}$)
+    \ENDFOR
+    \STATE Evaluate $v_{k}$, the accuracy of policy $\pi$ on $\setDV$
+    \STATE Augment $\setV_{1:k} = \{\setV_{1:k-1}, (\vphi_{k}, v_{k})\}$ and update the model M
+  \ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+An overview of BoRL is presented in Algorithm \ref{alg:bayes_opt_lur}. At each trial in BoRL, we sample auxiliary reward parameters by maximizing the acquisition function computed using the posterior distribution over the validation objective. After sampling the reward parameters, we optimize the $O_{\mathrm{RER}}$ objective on the training dataset for a fixed number of iterations. Once the training is finished, we evaluate the policy on the validation dataset, which is used to update the posterior distribution. BoRL is closely related to the previous work on learning metric-optimized example weights~\cite{zhao2018metric} for supervised learning.
+
+BoRL does not require the validation objective $O_{\mathrm{val}}$ to be differentiable with respect to the auxiliary reward parameters, therefore we can directly optimize the evaluation metric we care about. For example, in non-interactive environments, the reward parameters are optimized using the beam search accuracy on the validation set $\displaystyle \sD_{\mathrm{val}}$. In this work, we use Batched Gaussian Process Bandits~\cite{desautels2014parallelizing} employing a Mat\'ern kernel with automatic relevance determination~\cite{rasmussen2004gaussian} and the expected improvement acquisition function~\cite{movckus1975bayesian}.
+
+\subsection{MeRL \textit{vs.} BoRL}
+BoRL offers more flexibility than MeRL since we can optimize any
+non-differentiable objective on the validation set using BoRL but MeRL can only be used for
+differentiable objectives. Another advantage of BoRL over MeRL is that
+it performs global optimization over the reward parameters as compared
+to the local gradient based optimization in MeRL. Notably, the
+modular nature of Bayesian optimization and the
+widespread availability of open source libraries for black box
+optimization makes BoRL easier to implement than
+MeRL. However, MeRL is much more computationally efficient that BoRL
+due to having access to the gradients of the objective to
+optimize. Additionally, MeRL has the ability to adapt the auxiliary
+rewards throughout the course of policy optimization while BoRL can
+only express reward functions that remain fixed during policy
+optimization.

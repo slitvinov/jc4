@@ -1,0 +1,34 @@
+We present some implementation details of our method on
+weakly-supervised semantic parsing here. We will release the source
+code upon public release of the paper.
+
+{\bf Experiment Setup.} Our implementation is based on the open
+source implementation of MAPO~\cite{NIPS2018_8204} in
+Tensorflow~\cite{abadi2016tensorflow}.  We use the same model
+architecture as MAPO which combines a seq2seq model augmented by a
+key-variable memory~\cite{liang2017nsm} with a domain specific
+language interpreter. We utilized the hyperparameter tuning
+service~\cite{golovin2017google} provided by Google Cloud for our
+Bayesian Optimization approach (BoRL).
+
+{\bf Auxiliary Reward Features.}
+In our semantic parsing experiments, we used the same preprocessing as implemented in MAPO.
+The natural language queries are preprocessed to identify numbers and date-time entities. In addition,
+phrases in the query that appear in the table entries are converted to string entities and the columns
+in the table that have a phrase match are assigned a column feature weight based on the match.
+
+We used the following features for our auxiliary reward for both \textsc{WikiTableQuestions} and \textsc{WikiSQL}:
+\begin{itemize}
+	\itemsep-0.5em
+	\item $\vf_1$: Fraction of total entities in the program weighted by the entity length
+	\item $\vf_2$, $\vf_3$, $\vf_4$: Fraction of date-time, string and number entities in the program weighted by the entity length respectively
+	\item $\vf_5$: Fraction of total entities in the program
+	\item $\vf_6$: Fraction of longest entities in the program
+	\item $\vf_7$: Fraction of columns in the program weighted by the column weight
+	\item $\vf_8$: Fraction of total columns in the program with non-zero column weight
+	\item $\vf_9$: Fraction of columns used in the program with the highest column column weight
+	\item $\vf_{10}$: Fractional number of expressions in the program
+	\item $\vf_{11}$: Sum of entities and columns weighted by their length and column weight respectively divided by the number of expressions in the program
+\end{itemize}
+
+
