@@ -30,9 +30,10 @@ g: 4/5;
 
 p: [right, stay, stay, left];
 
-thru 10 do (
+thru 1 do (
   Pa: makelist(P[p[s]][s], s, N),
-  V: invert(ident(N) - g * Pa) . R,
+  G: ident(N) - g * Pa,
+  V: invert(G) . R,
   V: flatten(args(V)),
   Q: makelist(
     create_list(R[s] + g * sum( P[a][s][sp] * V[sp], sp, 1, N), a, A),
