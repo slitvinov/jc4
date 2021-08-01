@@ -4,6 +4,7 @@
 
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_matrix_double.h>
+#include "util.inc"
 
 enum { LEFT, RIGHT };
 enum { NS = 5, NA = 2 };
@@ -28,20 +29,6 @@ const char *Astr[NA] = {"<", ">"};
 const double g = 4.0 / 5.0;
 const double R[NS] = {0, 0, 0, 1, 0};
 
-void inv(double *a, double *b) {
-  int s;
-  gsl_matrix_view A;
-  gsl_matrix_view B;
-  gsl_permutation *p;
-
-  A = gsl_matrix_view_array(a, NS, NS);
-  B = gsl_matrix_view_array(b, NS, NS);
-  p = gsl_permutation_alloc(NS);
-  gsl_linalg_LU_decomp(&A.matrix, p, &s);
-  gsl_linalg_LU_invert(&A.matrix, p, &B.matrix);
-  gsl_permutation_free(p);
-}
-
 void value(const double *R, const int *p, double *V) {
   double G[NS * NS];
   double Ginv[NS * NS];
@@ -49,7 +36,7 @@ void value(const double *R, const int *p, double *V) {
   for (i = 0; i < NS; i++)
     for (j = 0; j < NS; j++)
       G[NS * i + j] = (i == j) - g * P[p[i]][i][j];
-  inv(G, Ginv);
+  inv(NS, G, Ginv);
   for (i = 0; i < NS; i++) {
     V[i] = 0;
     for (j = 0; j < NS; j++)
