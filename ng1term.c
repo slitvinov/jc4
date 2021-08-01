@@ -1,5 +1,5 @@
 /*
-c99  ng1.c `pkg-config --libs --cflags gsl`
+  c99  ng1term.c `pkg-config --libs --cflags gsl`
 */
 
 #include <gsl/gsl_matrix_double.h>
@@ -8,20 +8,20 @@ c99  ng1.c `pkg-config --libs --cflags gsl`
 enum { LEFT, RIGHT };
 enum { NS = 5, NA = 2 };
 const double P[NA][NS][NS] = {
-    {
-     { 0, 0, 0, 0, 1},
-     { 1, 0, 0, 0, 0},
-     { 0, 1, 0, 0, 0},
-     { 0, 0, 0, 0, 1},
-     { 0, 0, 0, 0, 1},
-    },
-    {
-     { 0, 0, 0, 0, 1},
-     { 0, 0, 1, 0, 0},
-     { 0, 0, 0, 1, 0},
-     { 0, 0, 0, 0, 1},
-     { 0, 0, 0, 0, 1},
-    },
+			      {
+			       { 0, 0, 0, 0, 1},
+			       { 1, 0, 0, 0, 0},
+			       { 0, 1, 0, 0, 0},
+			       { 0, 0, 0, 0, 1},
+			       { 0, 0, 0, 0, 1},
+			      },
+			      {
+			       { 0, 0, 0, 0, 1},
+			       { 0, 0, 1, 0, 0},
+			       { 0, 0, 0, 1, 0},
+			       { 0, 0, 0, 0, 1},
+			       { 0, 0, 0, 0, 1},
+			      },
 };
 const int A[NA] = { LEFT, RIGHT };
 const char *Astr[NA] = { "<", ">" };
@@ -30,17 +30,17 @@ const double g = 4.0 / 5.0;
 int
 inv(double *a, double *b)
 {
-    int s;
-    gsl_matrix_view A;
-    gsl_matrix_view B;
-    gsl_permutation *p;
+  int s;
+  gsl_matrix_view A;
+  gsl_matrix_view B;
+  gsl_permutation *p;
 
-    A = gsl_matrix_view_array(a, NS, NS);
-    B = gsl_matrix_view_array(b, NS, NS);
-    p = gsl_permutation_alloc(NS);
-    gsl_linalg_LU_decomp(&A.matrix, p, &s);
-    gsl_linalg_LU_invert(&A.matrix, p, &B.matrix);
-    gsl_permutation_free(p);
+  A = gsl_matrix_view_array(a, NS, NS);
+  B = gsl_matrix_view_array(b, NS, NS);
+  p = gsl_permutation_alloc(NS);
+  gsl_linalg_LU_decomp(&A.matrix, p, &s);
+  gsl_linalg_LU_invert(&A.matrix, p, &B.matrix);
+  gsl_permutation_free(p);
 }
 
 void
@@ -83,15 +83,15 @@ policy(const double *R, const double *V, int *p)
 int
 main()
 {
-    int i, j, t;
-    double V[NS];
-    int p[NS] = { LEFT, LEFT, LEFT, LEFT, LEFT };
-    double R[NS] = { 0, 0, 0, 1, 0 };
-    for (t = 0; t < 10; t++) {
-      value(R, p, /**/ V);
-      policy(R, V, p);
-      for (i = 0; i < NS - 1; i++)
-	printf("%6.2f%s ", V[i], Astr[p[i]]);
-      printf("\n");
-    }
+  int i, j, t;
+  double V[NS];
+  int p[NS] = { LEFT, LEFT, LEFT, LEFT, LEFT };
+  double R[NS] = { 0, 0, 0, 1, 0 };
+  for (t = 0; t < 10; t++) {
+    value(R, p, /**/ V);
+    policy(R, V, p);
+    for (i = 0; i < NS - 1; i++)
+      printf("%6.2f%s ", V[i], Astr[p[i]]);
+    printf("\n");
+  }
 }

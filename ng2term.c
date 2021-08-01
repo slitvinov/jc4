@@ -1,5 +1,5 @@
 /*
-c99  ng1.c `pkg-config --libs --cflags gsl`
+  c99  ng2term.c `pkg-config --libs --cflags gsl`
 */
 
 #include <gsl/gsl_matrix_double.h>
@@ -8,20 +8,20 @@ c99  ng1.c `pkg-config --libs --cflags gsl`
 enum { LEFT, RIGHT };
 enum { NS = 5, NA = 2 };
 const double P[NA][NS][NS] = {
-    {
-     { 0, 0, 0, 0, 1},
-     { 1, 0, 0, 0, 0},
-     { 0, 1, 0, 0, 0},
-     { 0, 0, 0, 0, 1},
-     { 0, 0, 0, 0, 1},
-    },
-    {
-     { 0, 0, 0, 0, 1},
-     { 0, 0, 1, 0, 0},
-     { 0, 0, 0, 1, 0},
-     { 0, 0, 0, 0, 1},
-     { 0, 0, 0, 0, 1},
-    },
+			      {
+			       { 0, 0, 0, 0, 1},
+			       { 1, 0, 0, 0, 0},
+			       { 0, 1, 0, 0, 0},
+			       { 0, 0, 0, 0, 1},
+			       { 0, 0, 0, 0, 1},
+			      },
+			      {
+			       { 0, 0, 0, 0, 1},
+			       { 0, 0, 1, 0, 0},
+			       { 0, 0, 0, 1, 0},
+			       { 0, 0, 0, 0, 1},
+			       { 0, 0, 0, 0, 1},
+			      },
 };
 const int A[NA] = { LEFT, RIGHT };
 const char *Astr[NA] = { "<", ">" };
@@ -31,17 +31,17 @@ const double R[NS] = { 0, 0, 0, 1, 0 };
 void
 inv(double *a, double *b)
 {
-    int s;
-    gsl_matrix_view A;
-    gsl_matrix_view B;
-    gsl_permutation *p;
+  int s;
+  gsl_matrix_view A;
+  gsl_matrix_view B;
+  gsl_permutation *p;
 
-    A = gsl_matrix_view_array(a, NS, NS);
-    B = gsl_matrix_view_array(b, NS, NS);
-    p = gsl_permutation_alloc(NS);
-    gsl_linalg_LU_decomp(&A.matrix, p, &s);
-    gsl_linalg_LU_invert(&A.matrix, p, &B.matrix);
-    gsl_permutation_free(p);
+  A = gsl_matrix_view_array(a, NS, NS);
+  B = gsl_matrix_view_array(b, NS, NS);
+  p = gsl_permutation_alloc(NS);
+  gsl_linalg_LU_decomp(&A.matrix, p, &s);
+  gsl_linalg_LU_invert(&A.matrix, p, &B.matrix);
+  gsl_permutation_free(p);
 }
 
 void
@@ -83,9 +83,9 @@ policy(const double *R, const double *V, int *p)
 void get_reward(double alpha, double *R)
 {
   int i;
-    for (i = 0; i < NS - 1; i++)
-      R[i] = alpha * i;
-    R[NS - 1] = 0;
+  for (i = 0; i < NS - 1; i++)
+    R[i] = alpha * i;
+  R[NS - 1] = 0;
 }
 
 void forward(const double *R, int *p)
@@ -98,28 +98,27 @@ void forward(const double *R, int *p)
   }
 }
 
-
 int
 main()
 {
-    int i;
-    double Rphi[NS], Vp[NS], Vm[NS];
-    int p[NS] = { LEFT, LEFT, LEFT, LEFT, LEFT };
-    double phi = 1.0;
-    double eps = 0.01;
+  int i;
+  double Rphi[NS], Vp[NS], Vm[NS];
+  int p[NS] = { LEFT, LEFT, LEFT, LEFT, LEFT };
+  double phi = 1.0;
+  double eps = 0.01;
 
 
-    get_reward(phi + eps, Rphi);
-    forward(Rphi, p);
-    value(R, p, Vp);
-    for (i = 0; i < NS - 1; i++)
-      printf("%6.2f%s ", Vp[i], Astr[p[i]]);
-    printf("\n");    
+  get_reward(phi + eps, Rphi);
+  forward(Rphi, p);
+  value(R, p, Vp);
+  for (i = 0; i < NS - 1; i++)
+    printf("%6.2f%s ", Vp[i], Astr[p[i]]);
+  printf("\n");    
 
-    get_reward(phi - eps, Rphi);
-    forward(Rphi, p);
-    value(R, p, Vm);
-    for (i = 0; i < NS - 1; i++)
-      printf("%6.2f%s ", Vm[i], Astr[p[i]]);    
-    printf("\n");
+  get_reward(phi - eps, Rphi);
+  forward(Rphi, p);
+  value(R, p, Vm);
+  for (i = 0; i < NS - 1; i++)
+    printf("%6.2f%s ", Vm[i], Astr[p[i]]);    
+  printf("\n");
 }
