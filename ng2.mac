@@ -19,7 +19,7 @@ P: [
 ]
 ];
 
-
+R: [1, 2, 3, 4];
 N: length(R);
 g: 4/5;
 A: [left: 1, stay: 2, right: 3];
@@ -28,7 +28,6 @@ p: [right, stay, stay, left];
 Pa1: makelist(P[p[s]][s], s, N);
 G: invert(ident(N) - g * Pa1);
 
-R: [1, 2, 3, 4];
 i: 2;
 for a in A do if a # p[i] then
 (
