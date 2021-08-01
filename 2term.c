@@ -2,35 +2,33 @@
   c99  2term.c `pkg-config --libs --cflags gsl`
 */
 
-#include <gsl/gsl_matrix_double.h>
 #include <gsl/gsl_linalg.h>
+#include <gsl/gsl_matrix_double.h>
 
 enum { LEFT, RIGHT };
 enum { NS = 5, NA = 2 };
 const double P[NA][NS][NS] = {
-			      {
-			       { 0, 0, 0, 0, 1},
-			       { 1, 0, 0, 0, 0},
-			       { 0, 1, 0, 0, 0},
-			       { 0, 0, 0, 0, 1},
-			       { 0, 0, 0, 0, 1},
-			      },
-			      {
-			       { 0, 0, 0, 0, 1},
-			       { 0, 0, 1, 0, 0},
-			       { 0, 0, 0, 1, 0},
-			       { 0, 0, 0, 0, 1},
-			       { 0, 0, 0, 0, 1},
-			      },
+    {
+        {0, 0, 0, 0, 1},
+        {1, 0, 0, 0, 0},
+        {0, 1, 0, 0, 0},
+        {0, 0, 0, 0, 1},
+        {0, 0, 0, 0, 1},
+    },
+    {
+        {0, 0, 0, 0, 1},
+        {0, 0, 1, 0, 0},
+        {0, 0, 0, 1, 0},
+        {0, 0, 0, 0, 1},
+        {0, 0, 0, 0, 1},
+    },
 };
-const int A[NA] = { LEFT, RIGHT };
-const char *Astr[NA] = { "<", ">" };
+const int A[NA] = {LEFT, RIGHT};
+const char *Astr[NA] = {"<", ">"};
 const double g = 4.0 / 5.0;
-const double R[NS] = { 0, 0, 0, 1, 0 };
+const double R[NS] = {0, 0, 0, 1, 0};
 
-void
-inv(double *a, double *b)
-{
+void inv(double *a, double *b) {
   int s;
   gsl_matrix_view A;
   gsl_matrix_view B;
@@ -44,8 +42,7 @@ inv(double *a, double *b)
   gsl_permutation_free(p);
 }
 
-void
-value(const double *R, const int *p, double *V) {
+void value(const double *R, const int *p, double *V) {
   double G[NS * NS];
   double Ginv[NS * NS];
   int i, j;
@@ -60,9 +57,7 @@ value(const double *R, const int *p, double *V) {
   }
 }
 
-void
-policy(const double *R, const double *V, int *p)
-{
+void policy(const double *R, const double *V, int *p) {
   double Q, Qmax, amax;
   int a, j, i;
   for (i = 0; i < NS; i++) {
@@ -70,26 +65,24 @@ policy(const double *R, const double *V, int *p)
     for (a = 0; a < NA; a++) {
       Q = R[i];
       for (j = 0; j < NS; j++)
-	Q += g * P[A[a]][i][j] * V[j];
+        Q += g * P[A[a]][i][j] * V[j];
       if (Q > Qmax) {
-	Qmax = Q;
-	amax = A[a];
+        Qmax = Q;
+        amax = A[a];
       }
     }
     p[i] = amax;
   }
 }
 
-void get_reward(double alpha, double *R)
-{
+void get_reward(double alpha, double *R) {
   int i;
   for (i = 0; i < NS - 1; i++)
     R[i] = alpha * i;
   R[NS - 1] = 0;
 }
 
-void forward(const double *R, int *p)
-{
+void forward(const double *R, int *p) {
   int t;
   double V[NS];
   for (t = 0; t < 10; t++) {
@@ -98,27 +91,24 @@ void forward(const double *R, int *p)
   }
 }
 
-int
-main()
-{
+int main() {
   int i;
   double Rphi[NS], Vp[NS], Vm[NS];
-  int p[NS] = { LEFT, LEFT, LEFT, LEFT, LEFT };
+  int p[NS] = {LEFT, LEFT, LEFT, LEFT, LEFT};
   double phi = 1.0;
   double eps = 0.01;
-
 
   get_reward(phi + eps, Rphi);
   forward(Rphi, p);
   value(R, p, Vp);
   for (i = 0; i < NS - 1; i++)
     printf("%6.2f%s ", Vp[i], Astr[p[i]]);
-  printf("\n");    
+  printf("\n");
 
   get_reward(phi - eps, Rphi);
   forward(Rphi, p);
   value(R, p, Vm);
   for (i = 0; i < NS - 1; i++)
-    printf("%6.2f%s ", Vm[i], Astr[p[i]]);    
+    printf("%6.2f%s ", Vm[i], Astr[p[i]]);
   printf("\n");
 }
