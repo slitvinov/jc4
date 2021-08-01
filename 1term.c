@@ -1,5 +1,5 @@
 /*
-  c99  ng1term.c `pkg-config --libs --cflags gsl`
+  c99  1term.c `pkg-config --libs --cflags gsl`
 */
 
 #include <gsl/gsl_matrix_double.h>
