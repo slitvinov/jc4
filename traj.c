@@ -33,7 +33,10 @@ const double P[NA][NS][NS] = {
 const int A[NA] = {LEFT, STAY, RIGHT};
 const char *Astr[NA] = {"<", "=", ">"};
 const double g = 4.0 / 5.0;
+
 int traj[NT][MAX_LEN];
+double Ret[NT];
+double Prob[NT];
 
 void value(const double *R, const int *p, double *V) {
   double G[NS * NS];
@@ -77,9 +80,24 @@ void gen_traj(void) {
      s = s0;
    }
  }
-
  gsl_rng_free(r);
+}
 
+void traj_ret(const double *R) {
+  double ret;
+  int t, j;
+  for (t = 0; t < NT; t++) {
+    ret = 0;
+    for (j = 0; j < MAX_LEN && traj[t][j] != NS - 1; j++) {
+      ret += R[traj[t][j]];
+    }
+    Ret[t] = ret;
+    fprintf(stderr, "r: %d:%g\n", t, ret);
+  }
+}
+
+void traj_prob(const int *p) {
+  
 }
 
 void policy(const double *R, const double *V, int *p) {
@@ -110,13 +128,14 @@ void forward(const double *R, int *p) {
 }
 
 int main() {
-  int i, j;
+  int i;
   double V[NS];
   int p[NS] = {STAY, STAY, STAY, STAY, STAY};
   double R[NS] = {0, 0, 0, 1, 0};
-
+  
   gen_traj();
-
+  traj_ret(R);
+  
   forward(R, p);
   value(R, p, V);
   for (i = 0; i < NS - 1; i++)

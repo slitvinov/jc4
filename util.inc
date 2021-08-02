@@ -13,4 +13,5 @@ int inv(int n, double *a, double *b) {
   gsl_linalg_LU_decomp(&A.matrix, p, &s);
   gsl_linalg_LU_invert(&A.matrix, p, &B.matrix);
   gsl_permutation_free(p);
+  return 0;
 }
