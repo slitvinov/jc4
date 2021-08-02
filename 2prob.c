@@ -3,23 +3,22 @@
 */
 
 #include "util.inc"
-
 enum { LEFT, RIGHT };
 enum { NS = 5, NA = 2 };
 const double P[NA][NS][NS] = {
     {
-        {0, 0, 0, 0, 1},
-        {1, 0, 0, 0, 0},
-        {0, 1, 0, 0, 0},
-        {0, 0, 0, 0, 1},
-        {0, 0, 0, 0, 1},
+        {0.0, 0.0, 0.0, 0.0, 1.0},
+        {0.8, 0.1, 0.1, 0.0, 0.0},
+        {0.0, 0.8, 0.1, 0.1, 0.0},
+        {0.0, 0.0, 0.0, 0.0, 1.0},
+        {0.0, 0.0, 0.0, 0.0, 1.0},
     },
     {
-        {0, 0, 0, 0, 1},
-        {0, 0, 1, 0, 0},
-        {0, 0, 0, 1, 0},
-        {0, 0, 0, 0, 1},
-        {0, 0, 0, 0, 1},
+        {0.0, 0.0, 0.0, 0.0, 1.0},
+        {0.1, 0.1, 0.8, 0.0, 0.0},
+        {0.0, 0.1, 0.1, 0.8, 0.0},
+        {0.0, 0.0, 0.0, 0.0, 1.0},
+        {0.0, 0.0, 0.0, 0.0, 1.0},
     },
 };
 const int A[NA] = {LEFT, RIGHT};
@@ -70,30 +69,34 @@ void get_reward(double alpha, double *R) {
 void forward(const double *R, int *p) {
   int t;
   double V[NS];
-  for (t = 0; t < 10; t++) {
+  for (t = 0; t < 20; t++) {
     value(R, p, /**/ V);
     policy(R, V, /**/ p);
   }
 }
 
 int main() {
-  int i;
+  int i, t;
   double Rphi[NS], Vp[NS], Vm[NS];
   int p[NS] = {LEFT, LEFT, LEFT, LEFT, LEFT};
-  double phi = 1.0;
+  double phi = 0.0;
   double eps = 0.01;
+  double grad;
 
-  get_reward(phi + eps, Rphi);
-  forward(Rphi, p);
-  value(R, p, Vp);
+  for (t = 0; t < 10; t++) {
+    get_reward(phi + eps, Rphi);
+    forward(Rphi, p);
+    value(R, p, Vp);
+    get_reward(phi - eps, Rphi);
+    forward(Rphi, p);
+    value(R, p, Vm);
+    grad = 0;
+    for (i = 0; i < NS - 1; i++)
+      grad += Vp[i] - Vm[i];
+    phi += grad * eps;
+    printf("%g\n", grad);
+  }
   for (i = 0; i < NS - 1; i++)
     printf("%6.2f%s ", Vp[i], Astr[p[i]]);
-  printf("\n");
-
-  get_reward(phi - eps, Rphi);
-  forward(Rphi, p);
-  value(R, p, Vm);
-  for (i = 0; i < NS - 1; i++)
-    printf("%6.2f%s ", Vm[i], Astr[p[i]]);
   printf("\n");
 }

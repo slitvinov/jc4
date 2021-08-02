@@ -2,8 +2,6 @@
   c99  1term.c `pkg-config --libs --cflags gsl`
 */
 
-#include <gsl/gsl_linalg.h>
-#include <gsl/gsl_matrix_double.h>
 #include "util.inc"
 
 enum { LEFT, RIGHT };

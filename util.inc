@@ -1,3 +1,6 @@
+#include <gsl/gsl_linalg.h>
+#include <gsl/gsl_matrix_double.h>
+
 int inv(int n, double *a, double *b) {
   int s;
   gsl_matrix_view A;
