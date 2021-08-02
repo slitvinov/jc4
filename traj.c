@@ -3,6 +3,7 @@
 */
 
 #include "util.inc"
+#include <gsl/gsl_rng.h>
 
 enum { LEFT, STAY, RIGHT };
 enum { NS = 5, NA = 3, NT = 10, MAX_LEN = 100 };
@@ -32,10 +33,7 @@ const double P[NA][NS][NS] = {
 const int A[NA] = {LEFT, STAY, RIGHT};
 const char *Astr[NA] = {"<", "=", ">"};
 const double g = 4.0 / 5.0;
-
-struct Traj {
-  int t[NT][MAX_LEN];
-}
+int traj[NT][MAX_LEN];
 
 void value(const double *R, const int *p, double *V) {
   double G[NS * NS];
@@ -50,6 +48,38 @@ void value(const double *R, const int *p, double *V) {
     for (j = 0; j < NS; j++)
       V[i] += Ginv[NS * i + j] * R[j];
   }
+}
+
+int rnd(gsl_rng *r, int lo, int hi)
+{
+  return lo + gsl_rng_uniform_int(r, hi - lo);
+}
+
+void gen_traj(void) {
+  int t, s, s0, j, a;
+  const gsl_rng_type * T;
+  gsl_rng * r;
+
+ T = gsl_rng_default;
+ r = gsl_rng_alloc (T);
+
+ for (t = 0; t < NT; t++) {
+   s = rnd(r, 0, NS - 1);
+   for (j = 0; ; j++) {
+     traj[t][j] = s;
+     fprintf(stderr, "s: %d:%d\n", t, s);
+     if (s == NS - 1 || j == MAX_LEN - 1)
+       break;
+     do {
+       a = rnd(r, 0, NA);
+       s0 = rnd(r, 0, NS);
+     } while (P[A[a]][s][s0] == 0.0);
+     s = s0;
+   }
+ }
+
+ gsl_rng_free(r);
+
 }
 
 void policy(const double *R, const double *V, int *p) {
@@ -84,6 +114,9 @@ int main() {
   double V[NS];
   int p[NS] = {STAY, STAY, STAY, STAY, STAY};
   double R[NS] = {0, 0, 0, 1, 0};
+
+  gen_traj();
+
   forward(R, p);
   value(R, p, V);
   for (i = 0; i < NS - 1; i++)
