@@ -45,24 +45,38 @@ void value(const double *R, const int *p, double *V) {
   }
 }
 
+void policy(const double *R, const double *V, int *p) {
+  double Q, Qmax, amax;
+  int a, j, i;
+  for (i = 0; i < NS; i++) {
+    Qmax = -DBL_MAX;
+    for (a = 0; a < NA; a++) {
+      Q = R[i];
+      for (j = 0; j < NS; j++)
+	Q += g * P[A[a]][i][j] * V[j];
+      if (Q > Qmax) {
+	Qmax = Q;
+	amax = A[a];
+      }
+    }
+    p[i] = amax;
+  }
+}
+
 int main() {
-  int i, ip;
-  const int *p;
+  int i, ip, t;
   double V[NS];
-  const int pp[][NS] = {
-			 {NONE, STAY, STAY, NONE, NONE},
-			 {NONE, LEFT, LEFT, NONE, NONE},
-			 {NONE, RIGHT, RIGHT, NONE, NONE},
-  };
+  int p[] = {NONE, LEFT, LEFT, NONE, NONE};
   const char *s;
   const double R[NS] = {0, 0, 0, 1, 0};
-  for (ip = 0; ip < (int)(sizeof pp / sizeof *pp); ip++)  {
-    p = pp[ip];
-    value(R, p, V);
+
+  for (t = 0; t < 4; t++) {
+    value(R, p, /**/ V);
     for (i = 0; i < NS - 1; i++) {
       s = i > 0 && i < NS - 2 ? Astr[p[i]] : "";
       printf("%6.2f%s ", V[i], s);
     }
     printf("\n");
+    policy(R, V, /**/ p);
   }
 }
