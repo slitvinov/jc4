@@ -51,11 +51,11 @@ int main() {
   double V[NS];
   const int pp[][NS] = {
 			 {NONE, STAY, STAY, NONE, NONE},
-			 {NONE, LEFT, LEFT, NONE, NONE},
+			 {NONE, RIGHT, LEFT, NONE, NONE},
 			 {NONE, RIGHT, RIGHT, NONE, NONE},
   };
   const char *s;
-  const double R[NS] = {0, 0, 0, 1, 0};
+  const double R[NS] = {1, 0, 0, 1, 0};
   for (ip = 0; ip < (int)(sizeof pp / sizeof *pp); ip++)  {
     p = pp[ip];
     value(R, p, V);

@@ -68,7 +68,7 @@ int main() {
   double V[NS];
   int p[] = {NONE, LEFT, LEFT, NONE, NONE};
   const char *s;
-  const double R[NS] = {0, 0, 0, 1, 0};
+  const double R[NS] = {1, 0, 0, 1, 0};
 
   for (t = 0; t < 4; t++) {
     value(R, p, /**/ V);
